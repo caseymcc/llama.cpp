@@ -193,6 +193,20 @@ ggml-opencl.o: ggml-opencl.cpp ggml-opencl.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 endif # LLAMA_CLBLAST
 
+ifdef LLAMA_HIPBLAS
+	ROCM_PATH  ?= /opt/rocm
+	CC         := $(ROCM_PATH)/llvm/bin/clang
+	CXX        := $(ROCM_PATH)/llvm/bin/clang++
+	GPU_TARGETS = gfx900 gfx906 gfx908 gfx90a gfx1030
+	CFLAGS     += -DGGML_USE_HIPBLAS -DGGML_USE_CUBLAS $(shell $(ROCM_PATH)/bin/hipconfig -C)
+	CXXFLAGS   += -DGGML_USE_HIPBLAS -DGGML_USE_CUBLAS $(shell $(ROCM_PATH)/bin/hipconfig -C)
+	LDFLAGS    += -L/opt/rocm/lib -Wl,-rpath=$(ROCM_PATH)/lib -lhipblas -lamdhip64
+	OBJS       += ggml-cuda.o
+ggml-cuda.o: CXXFLAGS += $(addprefix --offload-arch=,$(GPU_TARGETS))
+ggml-cuda.o: ggml-cuda.cu ggml-cuda.h
+	$(CXX) $(CXXFLAGS) -x hip -c -o $@ $<
+endif #LLAMA_HIPBLAS
+
 ifdef LLAMA_METAL
 	CFLAGS   += -DGGML_USE_METAL -DGGML_METAL_NDEBUG
 	CXXFLAGS += -DGGML_USE_METAL
